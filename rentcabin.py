@@ -16,11 +16,20 @@ class RentCabin():
 	def __init__(self):
 		self.dayspermonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 		self.year = self.inityear()
+	
+	def check(self):
+		if (self.inpt - int(self.inpt)) not in [0, 0.5]:
+			print('Only full hour or half-hour allowed: 8 or 8.5')
+			return False
+		if int(self.inpt) >= 16 or int(self.inpt) < 8:
+			print('Outside of allowed times: 8-15.5')
+			return False
+		return True
 
-	def reserve(self, *arr):
+	def reserve(self, arr):
 		month, day, hour = arr
 		try:
-			if not self.year[month][day][hour]: self.year[month][day][hour] = True; print('Half-Hour', hour, 'reserved'); return
+			if not self.year[month][day][hour]: self.year[month][day][hour] = True; print('Half-Hour', self.reservedslot, 'reserved'); return
 			print('Error: Half-Hour already reserved')
 		except Exception as e:
 			print(e)
@@ -31,8 +40,9 @@ class RentCabin():
 			for halfhour in range(8 * 2):
 				if not self.year[0][0][halfhour]: print('HalfHour', 8+halfhour*.5, 'is free')
 	def getindexfromtime(self):
+		self.reservedslot = str(self.inpt) + '-' + str(self.inpt+.5)
 		self.inpt -= 8
-		print(self.inpt, int(2*self.inpt), int(2*self.inpt + 1))
+#		print(self.inpt, int(2*self.inpt), int(2*self.inpt + 1))
 		if int(self.inpt) == self.inpt:
 			return int(2*self.inpt)
 		return int(2*int(self.inpt) + 1)
@@ -44,8 +54,10 @@ class RentCabin():
 			if inpt != 'exit':
 				try:
 					self.inpt = float(inpt)
-					arr = [0, 0, self.getindexfromtime()]
-					self.reserve(arr)
+					if not self.check():
+						continue
+					else:
+						self.reserve([0, 0, self.getindexfromtime()])
 				except Exception as e:
 					print(e)
 rc = RentCabin()
