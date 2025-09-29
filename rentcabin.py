@@ -18,6 +18,7 @@ class RentCabin():
 		self.dayssum = [0, 31, 59, 90, 120, 151, 181,  212, 243, 273, 304, 334, 365]
 		self.year = self.inityear()
 		self.dateset = False
+		self.skipdaymonth = False
 		self.skipinpt = False
 	
 	def check(self):
@@ -28,25 +29,24 @@ class RentCabin():
 
 	def reserve(self):
 		try:
-			self.halfhour = self.getindexfromtime()
-			if not int(self.year[self.month][self.day][self.halfhour]):
-				self.year[self.month][self.day][self.halfhour] = '1';
+			halfhour = self.getindexfromtime()
+			if not int(self.year[self.month][self.day][halfhour]):
+				self.year[self.month][self.day][halfhour] = '1';
 				print('Half-Hour', self.reservedslot, 'reserved');
 				return
 			print('Error: Half-Hour already reserved')
 		except Exception as e:
-			print(e)
-			exit()
+			print(e); exit()
 
 	def getindexfromtime(self):
 		self.reservedslot = str(self.inpt) + '-' + str(self.inpt+.5)
 		self.inpt -= 8
-		if int(self.inpt) == self.inpt:
-			return int(2*self.inpt)
+		if int(self.inpt) == self.inpt: return int(2*self.inpt)
 		return int(2*int(self.inpt) + 1)
 	def getday(self):
+		if self.skipinpt: return
 		try:
-			if not self.skipinpt:
+			if not self.skipdaymonth:
 				self.month = int(input("Enter Month: "))-1
 				self.day = int(input("Enter Day: "))-1
 			self.getfreehalfhours()
@@ -73,13 +73,15 @@ class RentCabin():
 		users = [{'name':'user1', 'password': 'pass123'},{'name':'user2', 'password': 'pass123'}]
 		for user in users:
 			if len(sys.argv) >= 3 and user['name'] == sys.argv[1] and user['password'] == sys.argv[2]: 
-				if len(sys.argv) == 5: self.month = int(sys.argv[3]); self.day = int(sys.argv[4]); self.skipinpt = True;
+				if len(sys.argv) >= 5: 
+					self.month = int(sys.argv[3])-1; self.day = int(sys.argv[4])-1; self.skipdaymonth = True
+					if len(sys.argv) == 6:
+						self.inpt = float(sys.argv[5].replace(',','.')); self.skipinpt = True
 				print(sys.argv[1], 'authed successfully'); return
 		print('Auth failed'); exit()
 	def run(self):
-		self.auth()
 		self.loadtimes()
-#		self.getfreehalfhours()
+		self.auth()
 		try: self.getday(); self.check(); self.reserve(); self.savetimes()
 		except Exception as e: print(e)
 
