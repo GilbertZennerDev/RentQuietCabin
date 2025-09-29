@@ -9,61 +9,79 @@ import sys
 print('program for renting the cabin')
 
 class RentCabin():
-	def initday(self): return [False for i in range(8 * 2)]
+	def initday(self): return ['0' for i in range(8 * 2)]
 	def initmonth(self, days): return [self.initday() for i in range(days)]
 	def inityear(self): return [self.initmonth(self.dayspermonth[i]) for i in range(12)]
 	
 	def __init__(self):
 		self.dayspermonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+		self.dayssum = [0, 31, 59, 90, 120, 151, 181,  212, 243, 273, 304, 334, 365]
 		self.year = self.inityear()
+		self.dateset = False
+		self.skipinpt = False
 	
 	def check(self):
 		if (self.inpt - int(self.inpt)) not in [0, 0.5]:
-			print('Only full hour or half-hour allowed: 8 or 8.5')
-			return False
+			print('Only full hour or half-hour allowed: 8 or 8.5');exit()
 		if int(self.inpt) >= 16 or int(self.inpt) < 8:
-			print('Outside of allowed times: 8-15.5')
-			return False
-		return True
+			print('Outside of allowed times: 8-15.5');exit()
 
-	def reserve(self, arr):
-		month, day, hour = arr
+	def reserve(self):
 		try:
-			if not self.year[month][day][hour]: self.year[month][day][hour] = True; print('Half-Hour', self.reservedslot, 'reserved'); return
+			self.halfhour = self.getindexfromtime()
+			if not int(self.year[self.month][self.day][self.halfhour]):
+				self.year[self.month][self.day][self.halfhour] = '1';
+				print('Half-Hour', self.reservedslot, 'reserved');
+				return
 			print('Error: Half-Hour already reserved')
 		except Exception as e:
 			print(e)
 			exit()
 
-	def show(self, what='free'):
-		if what == 'free':
-			for halfhour in range(8 * 2):
-				if not self.year[0][0][halfhour]: print('HalfHour', 8+halfhour*.5, 'is free')
 	def getindexfromtime(self):
 		self.reservedslot = str(self.inpt) + '-' + str(self.inpt+.5)
 		self.inpt -= 8
-#		print(self.inpt, int(2*self.inpt), int(2*self.inpt + 1))
 		if int(self.inpt) == self.inpt:
 			return int(2*self.inpt)
 		return int(2*int(self.inpt) + 1)
-				
+	def getday(self):
+		try:
+			if not self.skipinpt:
+				self.month = int(input("Enter Month: "))-1
+				self.day = int(input("Enter Day: "))-1
+			self.getfreehalfhours()
+			self.inpt = float(input("Enter time to reserve: ").replace(',','.'))
+		except: exit()
+	def getfreehalfhours(self):
+		for h, half in enumerate(self.year[self.month][self.day]):
+			if not int(half): print('final', str(8+h*.5), '-', str(8+(h+1)*.5), 'is free')
+	def loadtimes(self):
+		data = open('times.txt', 'r').read().splitlines()
+		data = [line for line in data if 'Month' not in line]
+		months = [data[self.dayssum[i]:self.dayssum[i+1]] for i in range(12)]
+		for month in range(12):
+			for d, day in enumerate(months[month]):
+				day = day.replace(' ', '')
+				for h, hour in enumerate(day):
+					self.year[month][d][h] = hour
+	def savetimes(self):
+		getday = lambda month, day: " ".join(self.year[month][day])
+		getmonth = lambda month: 'Month\n' + "\n".join([getday(month, i) for i in range(self.dayspermonth[month])])
+		getyear = lambda: "\n".join([getmonth(i) for i in range(12)])
+		open('times.txt', 'w').write(getyear())
+	def auth(self):
+		users = [{'name':'user1', 'password': 'pass123'},{'name':'user2', 'password': 'pass123'}]
+		for user in users:
+			if len(sys.argv) >= 3 and user['name'] == sys.argv[1] and user['password'] == sys.argv[2]: 
+				if len(sys.argv) == 5: self.month = int(sys.argv[3]); self.day = int(sys.argv[4]); self.skipinpt = True;
+				print(sys.argv[1], 'authed successfully'); return
+		print('Auth failed'); exit()
 	def run(self):
-		inpt = ''
-		while inpt != 'exit':
-			inpt = input("Enter time to reserve: ")
-			if inpt != 'exit':
-				try:
-					self.inpt = float(inpt)
-					if not self.check():
-						continue
-					else:
-						self.reserve([0, 0, self.getindexfromtime()])
-				except Exception as e:
-					print(e)
+		self.auth()
+		self.loadtimes()
+#		self.getfreehalfhours()
+		try: self.getday(); self.check(); self.reserve(); self.savetimes()
+		except Exception as e: print(e)
+
 rc = RentCabin()
-#rc.reserve(0, 0, 0)
-#rc.reserve(0, 0, 0)
-#rc.reserve(0, 0, 1)
-#rc.reserve(0, 0, 1)
-#rc.show('free')
 rc.run()
