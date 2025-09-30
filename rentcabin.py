@@ -62,16 +62,17 @@ class RentCabin():
 		getyear = lambda: "\n".join([getmonth(i) for i in range(12)])
 		open('times.txt', 'w').write(getyear())
 		
-	def reserve(self, mode='reserve'):
+	def reserve(self, mode='reserve', served=False):
+		if not served: self.halfhour = self.getindexfromtime()
 		try:
-			halfhour = self.getindexfromtime()
+#			halfhour = self.getindexfromtime()
 			if mode == 'reserve':
-				if not int(self.year[self.month][self.day][halfhour]):
-					self.year[self.month][self.day][halfhour] = '1';
+				if not int(self.year[self.month][self.day][self.halfhour]):
+					self.year[self.month][self.day][self.halfhour] = '1';
 					print('Half-Hour', self.reservedslot, 'reserved');
 					return
 				print('Error: Half-Hour already reserved'); return
-			self.year[self.month][self.day][halfhour] = '0';
+			self.year[self.month][self.day][self.halfhour] = '0';
 			print('Half-Hour', self.reservedslot, 'freed');
 			return
 		except Exception as e:
@@ -123,6 +124,13 @@ class RentCabin():
 	def run(self):
 		try: self.loadtimes(); self.auth(); self.getday(); self.check(); self.reserve(); self.savetimes()
 		except: exit()
+	
+	def on_click(self, item):
+		self.inpt = float(item)
+		self.halfhour = self.getindexfromtime()
+		st.write('debug item:', item, '.')
+		self.reserve('reserve', True)
+		self.savetimes()
 		
 	def server(self):
 		# Single date picker
@@ -134,7 +142,7 @@ class RentCabin():
 		halfs = [str(8+i*.5) for i, half in enumerate(self.year[self.month][self.day]) if not int(half)]
 		st.write("### Clickable List")
 		for item in halfs:
-		    if st.button(item): on_click(item)
+		    if st.button(item): self.on_click(item)
 
 
 rc = RentCabin()
