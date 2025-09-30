@@ -19,7 +19,7 @@ savetimes
 auth
 run
 '''
-import sys
+import sys, streamlit as st, datetime
 
 print('program for renting the cabin')
 
@@ -123,6 +123,19 @@ class RentCabin():
 	def run(self):
 		try: self.loadtimes(); self.auth(); self.getday(); self.check(); self.reserve(); self.savetimes()
 		except: exit()
+		
+	def server(self):
+		# Single date picker
+		date = st.date_input("Pick a date", datetime.date.today())
+#		st.write("You selected:", date, str(date).split('-')[1], str(date).split('-')[2])
+		self.month = int(str(date).split('-')[1])-1
+		self.day = int(str(date).split('-')[2])-1
+		self.loadtimes()
+		halfs = [str(8+i*.5) for i, half in enumerate(self.year[self.month][self.day]) if not int(half)]
+		st.write("### Clickable List")
+		for item in halfs:
+		    if st.button(item): on_click(item)
+
 
 rc = RentCabin()
-rc.run()
+rc.server()
