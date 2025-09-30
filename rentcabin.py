@@ -36,6 +36,10 @@ class RentCabin():
 		self.skipdaymonth = False
 		self.skipinpt = False
 	
+	def checkdaymonth(self):
+		if not (int(self.month) >= 0 and int(self.month) <= 11 and int(self.day) >= 0 and int(self.day) <= int(self.dayspermonth[self.month])):
+			print('Bad day or month'); exit()
+	
 	def check(self):
 		if (self.inpt - int(self.inpt)) not in [0, 0.5]:
 			print('Only full hour or half-hour allowed: 8 or 8.5');exit()
@@ -59,8 +63,6 @@ class RentCabin():
 		open('times.txt', 'w').write(getyear())
 		
 	def reserve(self, mode='reserve'):
-		checkdaymonth = lambda : self.month >= 0 and self.month <= 11 and self.day >= 0 and self.day <= self.dayspermonth[self.month]
-		if not checkdaymonth: print('invalid day or month'); return
 		try:
 			halfhour = self.getindexfromtime()
 			if mode == 'reserve':
@@ -99,11 +101,9 @@ class RentCabin():
 		except: exit()
 
 	def getfreehalfhours(self):
-		print('alls halfs', self.year[self.month][self.day])
+		self.checkdaymonth()
 		freehalfs = [half for half in self.year[self.month][self.day] if not int(half)]
-		print('freehalfs', freehalfs)
-		#if not len(freehalfs): print("No free slots available that day!"); exit()
-#		for h, half in enumerate(self.year[self.month][self.day]):
+		if not len(freehalfs): print("No free slots available that day!"); exit()
 		for h, half in enumerate(self.year[self.month][self.day]):
 			if not int(half): print('Half-Hour Slot', str(8+h*.5), '-', str(8+(h+1)*.5), 'is free')
 	
@@ -112,7 +112,7 @@ class RentCabin():
 		for user in users:
 			if len(sys.argv) >= 3 and user['name'] == sys.argv[1] and user['password'] == sys.argv[2]:
 				if len(sys.argv) >= 5: 
-					self.month = int(sys.argv[3])-1; self.day = int(sys.argv[4])-1; self.skipdaymonth = True
+					self.month = int(sys.argv[3])-1; self.day = int(sys.argv[4])-1; self.skipdaymonth = True;
 					if len(sys.argv) >= 6:
 						self.inpt = float(sys.argv[5].replace(',','.')); self.skipinpt = True
 						if len(sys.argv) == 7 and sys.argv[6] == 'free':
