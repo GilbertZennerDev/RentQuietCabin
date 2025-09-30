@@ -42,7 +42,9 @@ class RentCabin():
 		if int(self.inpt) >= 16 or int(self.inpt) < 8:
 			print('Outside of allowed times: 8-15.5');exit()
 	def loadtimes(self):
-		data = open('times.txt', 'r').read().splitlines()
+		try: data = open('times.txt', 'r').read().splitlines()
+		except: self.year = self.inityear(); self.savetimes(); self.loadtimes(); print('times.txt generated. Run again to reserve/free'); exit()
+
 		data = [line for line in data if 'Month' not in line]
 		months = [data[self.dayssum[i]:self.dayssum[i+1]] for i in range(12)]
 		for month in range(12):
@@ -55,15 +57,21 @@ class RentCabin():
 		getmonth = lambda month: 'Month\n' + "\n".join([getday(month, i) for i in range(self.dayspermonth[month])])
 		getyear = lambda: "\n".join([getmonth(i) for i in range(12)])
 		open('times.txt', 'w').write(getyear())
-
-	def reserve(self):
+		
+	def reserve(self, mode='reserve'):
+		checkdaymonth = lambda : self.month >= 0 and self.month <= 11 and self.day >= 0 and self.day <= self.dayspermonth[self.month]
+		if not checkdaymonth: print('invalid day or month'); return
 		try:
 			halfhour = self.getindexfromtime()
-			if not int(self.year[self.month][self.day][halfhour]):
-				self.year[self.month][self.day][halfhour] = '1';
-				print('Half-Hour', self.reservedslot, 'reserved');
-				return
-			print('Error: Half-Hour already reserved')
+			if mode == 'reserve':
+				if not int(self.year[self.month][self.day][halfhour]):
+					self.year[self.month][self.day][halfhour] = '1';
+					print('Half-Hour', self.reservedslot, 'reserved');
+					return
+				print('Error: Half-Hour already reserved'); return
+			self.year[self.month][self.day][halfhour] = '0';
+			print('Half-Hour', self.reservedslot, 'freed');
+			return
 		except Exception as e:
 			print(e); print("bad input"); exit()
 
@@ -74,6 +82,7 @@ class RentCabin():
 		return int(2*int(self.inpt) + 1)
 		
 	def getint(self, value, what='day'):
+		return 0
 		if what == 'day': return int(value)-1
 		return int(value)-1
 
@@ -81,27 +90,34 @@ class RentCabin():
 		if self.skipinpt: return
 		try:
 			if not self.skipdaymonth:
-				getint(input("Enter Month: "), 'month')
-				getint(input("Enter Day: "))
-#				self.month = int(input("Enter Month: "))-1
-#				self.day = int(input("Enter Day: "))-1
+				month = input("Enter Month: ")
+				day = input("Enter Day: ")
+				self.month = int(month) - 1
+				self.day = int(day) - 1
 			self.getfreehalfhours()
 			self.inpt = float(input("Enter time to reserve: ").replace(',','.'))
 		except: exit()
 
 	def getfreehalfhours(self):
+		print('alls halfs', self.year[self.month][self.day])
+		freehalfs = [half for half in self.year[self.month][self.day] if not int(half)]
+		print('freehalfs', freehalfs)
+		#if not len(freehalfs): print("No free slots available that day!"); exit()
+#		for h, half in enumerate(self.year[self.month][self.day]):
 		for h, half in enumerate(self.year[self.month][self.day]):
 			if not int(half): print('Half-Hour Slot', str(8+h*.5), '-', str(8+(h+1)*.5), 'is free')
 	
 	def auth(self):
 		users = [{'name':'user1', 'password': 'pass123'},{'name':'user2', 'password': 'pass123'}]
 		for user in users:
-			if len(sys.argv) >= 3 and user['name'] == sys.argv[1] and user['password'] == sys.argv[2]: 
+			if len(sys.argv) >= 3 and user['name'] == sys.argv[1] and user['password'] == sys.argv[2]:
 				if len(sys.argv) >= 5: 
-					self.month = self.getint(sys.argv[3], 'month'); self.day = self.getint(sys.argv[4]); self.skipdaymonth = True
-					if len(sys.argv) == 6:
+					self.month = int(sys.argv[3])-1; self.day = int(sys.argv[4])-1; self.skipdaymonth = True
+					if len(sys.argv) >= 6:
 						self.inpt = float(sys.argv[5].replace(',','.')); self.skipinpt = True
-				print(sys.argv[1], 'authed successfully'); return
+						if len(sys.argv) == 7 and sys.argv[6] == 'free':
+							self.reserve('free'); self.savetimes(); exit()
+				print(sys.argv[1], 'authed successfully'); return	
 		print('Auth failed'); exit()
 	
 	def run(self):
