@@ -1,0 +1,119 @@
+'''
+the idea is to allow people to rend the cabin for specific time at a specific date via a website
+so I need to be able to serve time units to people
+Let's start with 1 hour time:
+I split up each day to 8 hours and put a boolean: True (reserved), False (not reserved)
+
+RentCabin:
+initday
+initmonth
+inityear
+__init__
+check
+reserve
+getindexfromtime
+getday
+getfreehalfhours
+loadtimes
+savetimes
+auth
+run
+'''
+import sys, streamlit as st, datetime
+
+print('program for renting the cabin')
+
+class RentCabin():
+	def initday(self): return ['0' for i in range(8 * 2)]
+	def initmonth(self, days): return [self.initday() for i in range(days)]
+	def inityear(self): return [self.initmonth(self.dayspermonth[i]) for i in range(12)]
+	
+	def __init__(self):
+		self.dayspermonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+		self.dayssum = [0, 31, 59, 90, 120, 151, 181,  212, 243, 273, 304, 334, 365]
+		self.year = self.inityear()
+		self.dateset = False
+		self.skipdaymonth = False
+		self.skipinpt = False
+
+	def loadtimes(self):
+		try: data = open('times.txt', 'r').read().splitlines()
+		except: self.year = self.inityear(); self.savetimes(); self.loadtimes(); print('times.txt generated. Run again to reserve/free'); exit()
+
+		data = [line for line in data if 'Month' not in line]
+		months = [data[self.dayssum[i]:self.dayssum[i+1]] for i in range(12)]
+		for month in range(12):
+			for d, day in enumerate(months[month]):
+				day = day.replace(' ', '')
+				for h, hour in enumerate(day):
+					self.year[month][d][h] = hour
+	def savetimes(self):
+		getday = lambda month, day: " ".join(self.year[month][day])
+		getmonth = lambda month: 'Month\n' + "\n".join([getday(month, i) for i in range(self.dayspermonth[month])])
+		getyear = lambda: "\n".join([getmonth(i) for i in range(12)])
+		open('times.txt', 'w').write(getyear())
+		
+	def reserve(self, mode='reserve', served=False):
+		if not served: self.halfhour = self.getindexfromtime()
+		try:
+#			halfhour = self.getindexfromtime()
+			if mode == 'reserve':
+				if not int(self.year[self.month][self.day][self.halfhour]):
+					self.year[self.month][self.day][self.halfhour] = '1';
+					print('Half-Hour', self.reservedslot, 'reserved');
+					return
+				print('Error: Half-Hour already reserved'); return
+			self.year[self.month][self.day][self.halfhour] = '0';
+			print('Half-Hour', self.reservedslot, 'freed');
+			return
+		except Exception as e:
+			print(e); print("bad input"); exit()
+
+	def getindexfromtime(self):
+		self.reservedslot = str(self.inpt) + '-' + str(self.inpt+.5)
+		self.inpt -= 8
+		if int(self.inpt) == self.inpt: return int(2*self.inpt)
+		return int(2*int(self.inpt) + 1)
+	
+	def auth(self):
+		users = [{'name':'user1', 'password': 'pass123'},{'name':'user2', 'password': 'pass123'}]
+		for user in users:
+			if len(sys.argv) >= 3 and user['name'] == sys.argv[1] and user['password'] == sys.argv[2]:
+				if len(sys.argv) >= 5: 
+					self.month = int(sys.argv[3])-1; self.day = int(sys.argv[4])-1; self.skipdaymonth = True;
+					if len(sys.argv) >= 6:
+						self.inpt = float(sys.argv[5].replace(',','.')); self.skipinpt = True
+						if len(sys.argv) == 7 and sys.argv[6] == 'free':
+							self.reserve('free'); self.savetimes(); exit()
+				print(sys.argv[1], 'authed successfully'); return	
+		print('Auth failed'); exit()
+	
+	def run(self):
+		try: self.loadtimes(); self.auth(); self.getday(); self.check(); self.reserve(); self.savetimes()
+		except: exit()
+	
+	def on_click(self, item):
+		self.inpt = float(item)
+		self.halfhour = self.getindexfromtime()
+		st.write('debug item:', item, '.')
+		self.reserve('reserve', True)
+		self.savetimes()
+		self.loadtimes()
+		st.rerun()
+		
+	def server(self):
+		# Single date picker
+		date = st.date_input("Pick a date", datetime.date.today())
+#		st.write("You selected:", date, str(date).split('-')[1], str(date).split('-')[2])
+		self.month = int(str(date).split('-')[1])-1
+		self.day = int(str(date).split('-')[2])-1
+		self.loadtimes()
+		halfs = [str(8+i*.5) for i, half in enumerate(self.year[self.month][self.day]) if not int(half)]
+		if not len(halfs): st.write("No free slots available that day!"); return
+		st.write("### Clickable List")
+		for item in halfs:
+			if st.button(item): self.on_click(item)
+
+
+rc = RentCabin()
+rc.server()
