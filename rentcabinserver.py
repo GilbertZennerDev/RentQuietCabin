@@ -32,9 +32,6 @@ class RentCabin():
 		self.dayspermonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 		self.dayssum = [0, 31, 59, 90, 120, 151, 181,  212, 243, 273, 304, 334, 365]
 		self.year = self.inityear()
-		self.dateset = False
-		self.skipdaymonth = False
-		self.skipinpt = False
 
 	def loadtimes(self):
 		try: data = open('times.txt', 'r').read().splitlines()
@@ -75,23 +72,22 @@ class RentCabin():
 		if int(self.inpt) == self.inpt: return int(2*self.inpt)
 		return int(2*int(self.inpt) + 1)
 	
+	def login(self, usrname, pwd):
+		for usr in [{'name':'', 'password': ''},{'name':'user1', 'password': 'pass123'},{'name':'user2', 'password': 'pass123'}]:
+			if usr['name'] == usrname and usr['password'] == pwd: st.write('Logged In'); st.session_state["loggedin"] = True; st.rerun(); return
+		st.write('Login Failed'); return
+
+	def logout(self):
+		st.session_state["loggedin"] = False
+		st.write('You logged out')
+		st.rerun()
+	
 	def auth(self):
-		users = [{'name':'user1', 'password': 'pass123'},{'name':'user2', 'password': 'pass123'}]
-		for user in users:
-			if len(sys.argv) >= 3 and user['name'] == sys.argv[1] and user['password'] == sys.argv[2]:
-				if len(sys.argv) >= 5: 
-					self.month = int(sys.argv[3])-1; self.day = int(sys.argv[4])-1; self.skipdaymonth = True;
-					if len(sys.argv) >= 6:
-						self.inpt = float(sys.argv[5].replace(',','.')); self.skipinpt = True
-						if len(sys.argv) == 7 and sys.argv[6] == 'free':
-							self.reserve('free'); self.savetimes(); exit()
-				print(sys.argv[1], 'authed successfully'); return	
-		print('Auth failed'); exit()
-	
-	def run(self):
-		try: self.loadtimes(); self.auth(); self.getday(); self.check(); self.reserve(); self.savetimes()
-		except: exit()
-	
+		if "loggedin" not in st.session_state: st.session_state["loggedin"] = False
+		usrname = st.text_input('Username')
+		pwd = st.text_input('Password', type='password')
+		if not st.session_state["loggedin"] and st.button('Login'): self.login(usrname, pwd)
+		
 	def on_click(self, item):
 		self.inpt = float(item)
 		self.halfhour = self.getindexfromtime()
@@ -100,20 +96,27 @@ class RentCabin():
 		self.savetimes()
 		self.loadtimes()
 		st.rerun()
+	
+	def freeaslot(self):
+		pass
 		
 	def server(self):
+		self.auth()
+		if st.session_state["loggedin"]:
+			if st.button('Logout'): self.logout()
+			if st.button('free a slot'): self.freeaslot()
+		else: return
 		# Single date picker
 		date = st.date_input("Pick a date", datetime.date.today())
-#		st.write("You selected:", date, str(date).split('-')[1], str(date).split('-')[2])
 		self.month = int(str(date).split('-')[1])-1
 		self.day = int(str(date).split('-')[2])-1
 		self.loadtimes()
 		halfs = [str(8+i*.5) for i, half in enumerate(self.year[self.month][self.day]) if not int(half)]
-		if not len(halfs): st.write("No free slots available that day!"); return
-		st.write("### Clickable List")
-		for item in halfs:
-			if st.button(item): self.on_click(item)
-
+		if not len(halfs): st.write("No free slots available that day!"); return		
+		st.set_page_config(layout="wide")
+		cols = st.columns([3] * len(halfs))
+		for col, half in zip(cols, halfs):
+			if col.button(half, use_container_width=True): self.on_click(half)
 
 rc = RentCabin()
 rc.server()
