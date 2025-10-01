@@ -32,10 +32,15 @@ class RentCabin():
 		self.dayspermonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 		self.dayssum = [0, 31, 59, 90, 120, 151, 181,  212, 243, 273, 304, 334, 365]
 		self.year = self.inityear()
+		self.usrname = ''
+		self.pwd = ''
+		self.mayreserve = False
+		self.userslots = [{'date':'1.1.8'}, {'date':'1.1.9'}]
+		if 'username' not in st.session_state: st.session_state["username"] = 'unknown';
 
 	def loadtimes(self):
-		try: data = open('times.txt', 'r').read().splitlines()
-		except: self.year = self.inityear(); self.savetimes(); self.loadtimes(); print('times.txt generated. Run again to reserve/free'); exit()
+		try: data = open('times.txt', 'r').read().splitlines();# userdata = open('userslots.txt', 'r').read()
+		except: self.year = self.inityear(); self.savetimes(); print('times.txt generated. Run again to reserve/free'); exit()
 
 		data = [line for line in data if 'Month' not in line]
 		months = [data[self.dayssum[i]:self.dayssum[i+1]] for i in range(12)]
@@ -58,6 +63,7 @@ class RentCabin():
 				if not int(self.year[self.month][self.day][self.halfhour]):
 					self.year[self.month][self.day][self.halfhour] = '1';
 					print('Half-Hour', self.reservedslot, 'reserved');
+					self.updateuserfile()
 					return
 				print('Error: Half-Hour already reserved'); return
 			self.year[self.month][self.day][self.halfhour] = '0';
@@ -65,16 +71,17 @@ class RentCabin():
 			return
 		except Exception as e:
 			print(e); print("bad input"); exit()
-
+	
 	def getindexfromtime(self):
 		self.reservedslot = str(self.inpt) + '-' + str(self.inpt+.5)
 		self.inpt -= 8
 		if int(self.inpt) == self.inpt: return int(2*self.inpt)
 		return int(2*int(self.inpt) + 1)
 	
-	def login(self, usrname, pwd):
-		for usr in [{'name':'', 'password': ''},{'name':'user1', 'password': 'pass123'},{'name':'user2', 'password': 'pass123'}]:
-			if usr['name'] == usrname and usr['password'] == pwd: st.write('Logged In'); st.session_state["loggedin"] = True; st.rerun(); return
+	def login(self):
+		for usr in [{'name':'', 'password': ''},{'name':'1', 'password': ''},{'name':'user1', 'password': 'pass123'},{'name':'user2', 'password': 'pass123'}]:
+			if usr['name'] == self.usrname and usr['password'] == self.pwd:
+				st.success('Logged In'); st.session_state["loggedin"] = True; st.session_state["username"] = self.usrname; st.session_state["pwd"] = self.pwd; st.rerun(); return
 		st.write('Login Failed'); return
 
 	def logout(self):
@@ -83,29 +90,35 @@ class RentCabin():
 		st.rerun()
 	
 	def auth(self):
-		if "loggedin" not in st.session_state: st.session_state["loggedin"] = False
-		usrname = st.text_input('Username')
-		pwd = st.text_input('Password', type='password')
-		if not st.session_state["loggedin"] and st.button('Login'): self.login(usrname, pwd)
+		self.usrname = st.text_input('Username')
+		self.pwd = st.text_input('Password', type='password')
+		if not st.session_state["loggedin"] and st.button('Login'): self.login()
 		
 	def on_click(self, item):
 		self.inpt = float(item)
 		self.halfhour = self.getindexfromtime()
-		st.write('debug item:', item, '.')
 		self.reserve('reserve', True)
 		self.savetimes()
 		self.loadtimes()
 		st.rerun()
 	
-	def freeaslot(self):
-		pass
+	def getprintableslot(self, date):
+		date = date.split('.')
+		return 'Month: '+date[1]+' Day: '+date[2]+' Slot: '+date[2]
+	
+	def remove_slot(self, date):
+		self.userslots = [s for s in self.userslots if s['date'] != date]
+		st.rerun()
+	
+	def showslots(self):
+		self.loaduserslots()
+		if len(self.userslots) == 1 and self.userslots[0] == '' : st.write('No slots reserved yet'); return
+		st.write('Click on Slot to free')
+		cols = st.columns(len(self.userslots))
+		for col, slot in zip(cols, self.userslots):
+			if col.button(self.getprintableslot(slot['date']), use_container_width=True): self.remove_slot(slot['date'])
 		
-	def server(self):
-		self.auth()
-		if st.session_state["loggedin"]:
-			if st.button('Logout'): self.logout()
-			if st.button('free a slot'): self.freeaslot()
-		else: return
+	def showdatepicker(self):
 		# Single date picker
 		date = st.date_input("Pick a date", datetime.date.today())
 		self.month = int(str(date).split('-')[1])-1
@@ -113,10 +126,29 @@ class RentCabin():
 		self.loadtimes()
 		halfs = [str(8+i*.5) for i, half in enumerate(self.year[self.month][self.day]) if not int(half)]
 		if not len(halfs): st.write("No free slots available that day!"); return		
-		st.set_page_config(layout="wide")
-		cols = st.columns([3] * len(halfs))
+		cols = st.columns(len(halfs))
 		for col, half in zip(cols, halfs):
 			if col.button(half, use_container_width=True): self.on_click(half)
+		
+	def server(self):
+		st.set_page_config(layout="wide")
+		if "loggedin" not in st.session_state: st.session_state["loggedin"] = False
+		if st.session_state["loggedin"]:
+			if st.button('Logout'): self.logout()
+			if self.mayreserve: self.showdatepicker()
+			else: st.write('You have reserved 2/2 of your slots!')
+			self.showslots()
+		else: self.auth(); return
+	
+	def loaduserslots(self):
+		try: self.userslots2 = open(st.session_state['username']+'.txt', 'r').read().split('-'); self.userslots = [{'date': self.userslots2[i].strip()} for i in range(len(self.userslots2))];
+		except: self.userslots = []
+	
+	def updateuserfile(self):
+		print('Saving Userfile', st.session_state['username'], '.txt')
+		open(st.session_state['username']+'.txt', 'w').write('-'.join([s['date'] for s in self.userslots]))
+		
 
 rc = RentCabin()
 rc.server()
+#rc.updateuserfile()
