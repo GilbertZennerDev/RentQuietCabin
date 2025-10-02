@@ -18,6 +18,9 @@ loadtimes
 savetimes
 auth
 run
+
+today I change my tactics: only 1 slot allowed per person.
+also I need to free a slot if it is removed by the user. so not just st.session_state['userslot'] but also times
 '''
 import sys, streamlit as st, datetime
 
@@ -32,14 +35,10 @@ class RentCabin():
 		self.dayspermonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 		self.dayssum = [0, 31, 59, 90, 120, 151, 181,  212, 243, 273, 304, 334, 365]
 		self.year = self.inityear()
-		self.usrname = ''
-		self.pwd = ''
-		self.mayreserve = False
-		self.userslots = [{'date':'1.1.8'}, {'date':'1.1.9'}]
-		if 'username' not in st.session_state: st.session_state["username"] = 'unknown';
+		st.session_state['userslot'] = ''
 
 	def loadtimes(self):
-		try: data = open('times.txt', 'r').read().splitlines();# userdata = open('userslots.txt', 'r').read()
+		try: data = open('times.txt', 'r').read().splitlines();
 		except: self.year = self.inityear(); self.savetimes(); print('times.txt generated. Run again to reserve/free'); exit()
 
 		data = [line for line in data if 'Month' not in line]
@@ -55,20 +54,19 @@ class RentCabin():
 		getyear = lambda: "\n".join([getmonth(i) for i in range(12)])
 		open('times.txt', 'w').write(getyear())
 		
-	def reserve(self, mode='reserve', served=False):
-		if not served: self.halfhour = self.getindexfromtime()
+	def reserve(self, mode='reserve'):
 		try:
-#			halfhour = self.getindexfromtime()
 			if mode == 'reserve':
 				if not int(self.year[self.month][self.day][self.halfhour]):
 					self.year[self.month][self.day][self.halfhour] = '1';
 					print('Half-Hour', self.reservedslot, 'reserved');
-					self.updateuserfile()
+					self.savetimes()
+					self.saveuserslot()
+					st.rerun()
 					return
 				print('Error: Half-Hour already reserved'); return
 			self.year[self.month][self.day][self.halfhour] = '0';
-			print('Half-Hour', self.reservedslot, 'freed');
-			return
+			self.savetimes()
 		except Exception as e:
 			print(e); print("bad input"); exit()
 	
@@ -80,43 +78,50 @@ class RentCabin():
 	
 	def login(self):
 		for usr in [{'name':'', 'password': ''},{'name':'1', 'password': ''},{'name':'user1', 'password': 'pass123'},{'name':'user2', 'password': 'pass123'}]:
-			if usr['name'] == self.usrname and usr['password'] == self.pwd:
-				st.success('Logged In'); st.session_state["loggedin"] = True; st.session_state["username"] = self.usrname; st.session_state["pwd"] = self.pwd; st.rerun(); return
+			if usr['name'] == st.session_state["username"] and usr['password'] == st.session_state["pwd"]:
+				st.success('Logged In'); st.session_state["loggedin"] = True; st.rerun()
 		st.write('Login Failed'); return
 
 	def logout(self):
 		st.session_state["loggedin"] = False
-		st.write('You logged out')
+		st.success('You logged out')
 		st.rerun()
 	
 	def auth(self):
-		self.usrname = st.text_input('Username')
-		self.pwd = st.text_input('Password', type='password')
+		self.loadtimes()
+		st.session_state["username"] = st.text_input('Username')
+		st.session_state["pwd"] = st.text_input('Password', type='password')
 		if not st.session_state["loggedin"] and st.button('Login'): self.login()
 		
 	def on_click(self, item):
 		self.inpt = float(item)
 		self.halfhour = self.getindexfromtime()
-		self.reserve('reserve', True)
-		self.savetimes()
-		self.loadtimes()
+		self.reserve()
 		st.rerun()
 	
 	def getprintableslot(self, date):
 		date = date.split('.')
-		return 'Month: '+date[1]+' Day: '+date[2]+' Slot: '+date[2]
+		return 'Month: '+date[0]+' Day: '+date[1]+' Slot: '+date[2]
 	
 	def remove_slot(self, date):
-		self.userslots = [s for s in self.userslots if s['date'] != date]
+		data = st.session_state['userslot'].split('.')
+		self.month = int(data[0])
+		self.day = int(data[1])
+		self.halfhour = int(data[2])
+		print('freeing', self.month, self.day, self.halfhour)
+		self.reserve('free')
+		st.session_state['userslot'] = ''
+		open(st.session_state['username']+'.txt', 'w').write(st.session_state['userslot'])
 		st.rerun()
 	
 	def showslots(self):
-		self.loaduserslots()
-		if len(self.userslots) == 1 and self.userslots[0] == '' : st.write('No slots reserved yet'); return
-		st.write('Click on Slot to free')
-		cols = st.columns(len(self.userslots))
-		for col, slot in zip(cols, self.userslots):
-			if col.button(self.getprintableslot(slot['date']), use_container_width=True): self.remove_slot(slot['date'])
+		try:
+			self.loaduserslot()
+			st.write('Click on Slot to free')
+			cols = st.columns(len(st.session_state['userslot']))
+			for col, slot in zip(cols, st.session_state['userslot']):
+				if col.button(self.getprintableslot(st.session_state['userslot']), use_container_width=True): self.remove_slot(st.session_state['userslot'])
+		except: st.write('No Slot reserved')
 		
 	def showdatepicker(self):
 		# Single date picker
@@ -133,22 +138,20 @@ class RentCabin():
 	def server(self):
 		st.set_page_config(layout="wide")
 		if "loggedin" not in st.session_state: st.session_state["loggedin"] = False
-		if st.session_state["loggedin"]:
-			if st.button('Logout'): self.logout()
-			if self.mayreserve: self.showdatepicker()
-			else: st.write('You have reserved 2/2 of your slots!')
-			self.showslots()
-		else: self.auth(); return
+		if not st.session_state["loggedin"]: self.auth(); return
+		self.showslots()
+		if not len(st.session_state["userslot"]): self.showdatepicker()
+		if st.button('Logout'): self.logout()
 	
-	def loaduserslots(self):
-		try: self.userslots2 = open(st.session_state['username']+'.txt', 'r').read().split('-'); self.userslots = [{'date': self.userslots2[i].strip()} for i in range(len(self.userslots2))];
-		except: self.userslots = []
-	
-	def updateuserfile(self):
-		print('Saving Userfile', st.session_state['username'], '.txt')
-		open(st.session_state['username']+'.txt', 'w').write('-'.join([s['date'] for s in self.userslots]))
+	def loaduserslot(self):
+		try: st.session_state['userslot'] = open(st.session_state['username']+'.txt', 'r').read().strip()
+		except: st.session_state['userslot'] = ''
 		
-
+	def saveuserslot(self):
+		st.session_state['userslot'] = str(self.month)+'.'+str(self.day)+'.'+str(self.halfhour)
+		print('writing', st.session_state['userslot'])
+		open(st.session_state['username']+'.txt', 'w').write(st.session_state['userslot'])
+		st.rerun()
+		
 rc = RentCabin()
 rc.server()
-#rc.updateuserfile()
