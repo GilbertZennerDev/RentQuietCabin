@@ -40,5 +40,5 @@ class HandleDb:
 		self.conn.commit()
 		self.conn.close()
 		
-hdb = HandleDb()
-#hdb.printuser('Alice')
+#hdb = HandleDb()
+
