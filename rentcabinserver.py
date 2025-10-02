@@ -34,6 +34,7 @@ class RentCabin():
 	def __init__(self):
 		self.dayspermonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 		self.dayssum = [0, 31, 59, 90, 120, 151, 181,  212, 243, 273, 304, 334, 365]
+		self.monthnames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 		self.year = self.inityear()
 		st.session_state['userslot'] = ''
 
@@ -101,31 +102,37 @@ class RentCabin():
 	
 	def getprintableslot(self, date):
 		date = date.split('.')
-		return 'Month: '+date[0]+' Day: '+date[1]+' Slot: '+date[2]
+		if len(date) != 3: return 'empty'
+		return self.monthnames[int(date[0])]+'/'+str(int(date[1])+1)+' Slot: '+str(8+int(date[2])*.5)
 	
 	def remove_slot(self, date):
 		data = st.session_state['userslot'].split('.')
 		self.month = int(data[0])
 		self.day = int(data[1])
 		self.halfhour = int(data[2])
-		print('freeing', self.month, self.day, self.halfhour)
 		self.reserve('free')
 		st.session_state['userslot'] = ''
-		open(st.session_state['username']+'.txt', 'w').write(st.session_state['userslot'])
+		open(st.session_state['username']+'.txt', 'w').write('')
 		st.rerun()
 	
 	def showslots(self):
 		try:
 			self.loaduserslot()
-			st.write('Click on Slot to free')
-			cols = st.columns(len(st.session_state['userslot']))
-			for col, slot in zip(cols, st.session_state['userslot']):
-				if col.button(self.getprintableslot(st.session_state['userslot']), use_container_width=True): self.remove_slot(st.session_state['userslot'])
-		except: st.write('No Slot reserved')
+			if not len(st.session_state['userslot']) : st.write('No Slot reserved'); return
+		except: return
+		st.write('Click on Slot to free')
+		#cols = st.columns(len(st.session_state['userslot']))
+		#for col, slot in zip(cols, st.session_state['userslot']):
+		#	if col.button(self.getprintableslot(st.session_state['userslot']), use_container_width=True): self.remove_slot(st.session_state['userslot'])
+		if st.button(self.getprintableslot(st.session_state['userslot'])): self.remove_slot(st.session_state['userslot'])
 		
 	def showdatepicker(self):
+		# Get today's date
+		today = datetime.date.today()
+		# Define the maximum date (1 month ahead)
+		three_months_ahead = today + datetime.timedelta(days=90)
 		# Single date picker
-		date = st.date_input("Pick a date", datetime.date.today())
+		date = st.date_input("Pick a date", value=today, min_value=today, max_value=three_months_ahead)
 		self.month = int(str(date).split('-')[1])-1
 		self.day = int(str(date).split('-')[2])-1
 		self.loadtimes()
