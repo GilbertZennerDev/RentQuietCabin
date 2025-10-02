@@ -20,9 +20,10 @@ auth
 run
 
 today I change my tactics: only 1 slot allowed per person.
-also I need to free a slot if it is removed by the user. so not just st.session_state['userslot'] but also times
+also I need to free a slot if it is removed by the user. so not just st.session_state['slot'] but also times
 '''
-import sys, streamlit as st, datetime
+import sys, streamlit as st, datetime, sqlite3
+from learndb import HandleDb
 
 print('program for renting the cabin')
 
@@ -36,7 +37,9 @@ class RentCabin():
 		self.dayssum = [0, 31, 59, 90, 120, 151, 181,  212, 243, 273, 304, 334, 365]
 		self.monthnames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 		self.year = self.inityear()
-		st.session_state['userslot'] = ''
+		self.hdb = HandleDb()
+		self.hdb.createtable()
+		self.hdb.register('1')
 
 	def loadtimes(self):
 		try: data = open('times.txt', 'r').read().splitlines();
@@ -62,7 +65,7 @@ class RentCabin():
 					self.year[self.month][self.day][self.halfhour] = '1';
 					print('Half-Hour', self.reservedslot, 'reserved');
 					self.savetimes()
-					self.saveuserslot()
+					self.saveslot()
 					st.rerun()
 					return
 				print('Error: Half-Hour already reserved'); return
@@ -106,25 +109,25 @@ class RentCabin():
 		return self.monthnames[int(date[0])]+'/'+str(int(date[1])+1)+' Slot: '+str(8+int(date[2])*.5)
 	
 	def remove_slot(self, date):
-		data = st.session_state['userslot'].split('.')
+		data = st.session_state['slot'].split('.')
 		self.month = int(data[0])
 		self.day = int(data[1])
 		self.halfhour = int(data[2])
 		self.reserve('free')
-		st.session_state['userslot'] = ''
-		open(st.session_state['username']+'.txt', 'w').write('')
+		st.session_state['slot'] = ''
+		self.hdb.updateslot('1', None)
 		st.rerun()
 	
 	def showslots(self):
 		try:
-			self.loaduserslot()
-			if not len(st.session_state['userslot']) : st.write('No Slot reserved'); return
+			self.loadslot()
+			if not len(st.session_state['slot']) : st.write('No Slot reserved'); return
 		except: return
 		st.write('Click on Slot to free')
-		#cols = st.columns(len(st.session_state['userslot']))
-		#for col, slot in zip(cols, st.session_state['userslot']):
-		#	if col.button(self.getprintableslot(st.session_state['userslot']), use_container_width=True): self.remove_slot(st.session_state['userslot'])
-		if st.button(self.getprintableslot(st.session_state['userslot'])): self.remove_slot(st.session_state['userslot'])
+		#cols = st.columns(len(st.session_state['slot']))
+		#for col, slot in zip(cols, st.session_state['slot']):
+		#	if col.button(self.getprintableslot(st.session_state['slot']), use_container_width=True): self.remove_slot(st.session_state['slot'])
+		if st.button(self.getprintableslot(st.session_state['slot'])): self.remove_slot(st.session_state['slot'])
 		
 	def showdatepicker(self):
 		# Get today's date
@@ -144,21 +147,29 @@ class RentCabin():
 		
 	def server(self):
 		st.set_page_config(layout="wide")
+		if st.button('Logout'): self.logout()
 		if "loggedin" not in st.session_state: st.session_state["loggedin"] = False
 		if not st.session_state["loggedin"]: self.auth(); return
 		self.showslots()
-		if not len(st.session_state["userslot"]): self.showdatepicker()
-		if st.button('Logout'): self.logout()
+		if st.session_state["slot"] is None: self.showdatepicker()
+
 	
-	def loaduserslot(self):
-		try: st.session_state['userslot'] = open(st.session_state['username']+'.txt', 'r').read().strip()
-		except: st.session_state['userslot'] = ''
+	def loadslot(self):
+		try: st.session_state['slot'] = self.hdb.getslot('1')
+		except: st.session_state['slot'] = ''
 		
-	def saveuserslot(self):
-		st.session_state['userslot'] = str(self.month)+'.'+str(self.day)+'.'+str(self.halfhour)
-		print('writing', st.session_state['userslot'])
-		open(st.session_state['username']+'.txt', 'w').write(st.session_state['userslot'])
+	def saveslot(self):
+		st.session_state['slot'] = str(self.month)+'.'+str(self.day)+'.'+str(self.halfhour)
+		self.hdb.updateslot('1', st.session_state['slot'])
+		print('debug slot', self.hdb.getslot('1'))
+		print('writing', st.session_state['slot'])
 		st.rerun()
 		
+	def testdb(self):
+		print('testing db')
+#		self.hdb.register('1')
+#		self.hdb.printusers()
+		print(self.hdb.getslot('1'))
 rc = RentCabin()
 rc.server()
+#rc.testdb()
