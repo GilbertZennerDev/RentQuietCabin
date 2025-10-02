@@ -21,7 +21,7 @@ run
 today I change my tactics: only 1 slot allowed per person.
 also I need to free a slot if it is removed by the user. so not just st.session_state['slot'] but also times
 '''
-import sys, streamlit as st, datetime, sqlite3
+import sys, streamlit as st, datetime
 from handledb import HandleDb
 
 print('program for renting the cabin')
