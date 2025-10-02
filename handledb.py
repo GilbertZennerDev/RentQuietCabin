@@ -39,6 +39,4 @@ class HandleDb:
 	def closedb(self):
 		self.conn.commit()
 		self.conn.close()
-		
-#hdb = HandleDb()
 
