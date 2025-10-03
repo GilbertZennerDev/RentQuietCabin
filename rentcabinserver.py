@@ -166,7 +166,6 @@ class RentCabin():
 		self.showslots()
 		if st.session_state["slot"] is None or not len(st.session_state["slot"]): self.showdatepicker()
 
-	
 	def loadslot(self):
 		try:
 			if not st.session_state['slot']: st.session_state['slot'] = self.hdb.getslot(st.session_state['username'])
@@ -176,6 +175,7 @@ class RentCabin():
 		st.session_state['slot'] = str(self.month)+'.'+str(self.day)+'.'+str(self.halfhour)
 		self.hdb.updateslot(st.session_state['username'], st.session_state['slot'])
 		st.rerun()
-		
-rc = RentCabin()
-rc.server()
+
+if "__name__" 	== "__main__()":
+	rc = RentCabin()
+	rc.server()
