@@ -21,38 +21,24 @@ run
 today I change my tactics: only 1 slot allowed per person.
 also I need to free a slot if it is removed by the user. so not just st.session_state['slot'] but also times
 '''
-import sys, streamlit as st, datetime
+
 from handledb import HandleDb
-from streamlit_cookies_manager import EncryptedCookieManager
+import sys, streamlit as st, datetime
 
 st.header('Rent 30 Minutes in the Quiet Cabin on the 5th Floor')
 
 class RentCabin():
-	def initday(self): return ['0']*16 #['0' for i in range(8 * 2)]
-	def initmonth(self, days): return [self.initday()]*days #[self.initday() for i in range(days)]
+	def initday(self): return ['0']*16
+	def initmonth(self, days): return [self.initday()]*days
 	def inityear(self): return [self.initmonth(self.dayspermonth[i]) for i in range(12)]
 	
-	def initcookies(self):
-		# Initialize cookie manager
-		self.cookies = EncryptedCookieManager(
-		    prefix="rentquietcabin",
-		    password="shdvn34442mtfvasvjasv"
-		)
-		if not self.cookies.ready(): st.stop()
-		self.getfromcookies('loggedin')
-		
-	def getfromcookies(self, *names):
-		for name in names:
-			if name not in st.session_state: st.session_state[name] = self.cookies.get(name)
-
 	def __init__(self):
 		self.dayspermonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 		self.dayssum = [0, 31, 59, 90, 120, 151, 181,  212, 243, 273, 304, 334, 365]
 		self.monthnames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 		self.year = self.inityear()
 		self.hdb = HandleDb()
-		self.initcookies()
-
+			
 	def loadtimes(self):
 		try: data = open('times.txt', 'r').read().splitlines();
 		except: self.year = self.inityear(); self.savetimes(); print('times.txt generated. Run again to reserve/free'); exit()
@@ -103,13 +89,15 @@ class RentCabin():
 		st.session_state["username"] = st.text_input('Username')
 		st.session_state["pwd"] = st.text_input('Password', type='password')
 		st.session_state["email"] = st.text_input('Email')
-		
-	def updatecookie(self, name, value):
-		self.cookies[name] = value; self.cookies.save();
 	
 	def login(self):
-		if self.hdb.printuser(st.session_state["username"]) is not None:
-			st.success('Logged In'); self.updatecookie('loggedin', 'True'); st.session_state["loggedin"] = True; st.rerun()
+		data = self.hdb.getuserdata(st.session_state["username"])
+		st.write('test1', self.hdb.getuserdata(st.session_state["username"]))
+		if self.hdb.getuserdata(st.session_state["username"]) is not None:
+			st.success('Logged In')
+			st.session_state.loggedin = True
+			st.session_state['slot'] = data[1]
+			st.rerun()
 		st.write('Login Failed'); return
 	
 	def register(self):
@@ -118,7 +106,8 @@ class RentCabin():
 
 	def logout(self):
 		st.session_state["loggedin"] = False
-		self.updatecookie('loggedin', 'False')
+		st.session_state["slot"] = ''
+#		self.controller.set('loggedin', False)
 		st.success('You logged out')
 		st.rerun()
 	
@@ -175,19 +164,17 @@ class RentCabin():
 		if 'loggedin' in st.session_state and st.session_state["loggedin"] and st.button('Logout'): self.logout()
 		if 'loggedin' not in st.session_state or not st.session_state["loggedin"]: self.auth(); return
 		self.showslots()
-		if st.session_state["slot"] is None: self.showdatepicker()
+		if st.session_state["slot"] is None or not len(st.session_state["slot"]): self.showdatepicker()
 
 	
 	def loadslot(self):
 		try:
-			self.getfromcookies('slot');
 			if not st.session_state['slot']: st.session_state['slot'] = self.hdb.getslot(st.session_state['username'])
 		except: st.session_state['slot'] = ''
 		
 	def saveslot(self):
 		st.session_state['slot'] = str(self.month)+'.'+str(self.day)+'.'+str(self.halfhour)
 		self.hdb.updateslot(st.session_state['username'], st.session_state['slot'])
-		self.updatecookie('slot', st.session_state['slot'])
 		st.rerun()
 		
 rc = RentCabin()

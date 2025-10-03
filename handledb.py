@@ -32,10 +32,10 @@ class HandleDb:
 		self.cursor.execute("SELECT * FROM users")
 		rows = self.cursor.fetchall()
 		for row in rows: print(row)		
-	def printuser(self, name):
+	def getuserdata(self, name):
 		self.cursor.execute("SELECT name, slot FROM users WHERE name = ?", (name,))
 		result = self.cursor.fetchone()
-		return result[0] if result else None
+		return result if result else None
 	def closedb(self):
 		self.conn.commit()
 		self.conn.close()
