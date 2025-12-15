@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
+
 const generateTimeSlots = (reservedSlots) => {
     const slots = [];
     const START_TIME_MINUTES = 8 * 60; // 8:00 AM
@@ -11,6 +12,7 @@ const generateTimeSlots = (reservedSlots) => {
         const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
         
         // Check if the current time slot is reserved
+        // Note: It assumes 'reservedSlots' is an array of objects like { time: "HH:MM", is_reserved: 1 }
         const isReserved = reservedSlots.some(slot => slot.time === timeString && slot.is_reserved === 1);
         
         slots.push({
@@ -50,15 +52,21 @@ const SlotPicker = () => {
             if (!response.ok) {
                 throw new Error('Failed to fetch slots.');
             }
-            const data = await response.json();
-            // Data received from server is already the full list of generated/reserved slots
-            setSlots(data); 
+            // `data` is now expected to be an array of *reserved* slot objects
+            const reservedData = await response.json(); 
+            
+            // !!! CALL generateTimeSlots HERE !!!
+            const fullSlotsList = generateTimeSlots(reservedData);
+
+            // Set the full list of generated and marked slots to state
+            setSlots(fullSlotsList);
+            
         } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, []); // generateTimeSlots is outside, no need to include in dependency array
 
     useEffect(() => {
         // Fetch slots whenever the selected date changes
