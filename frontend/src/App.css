@@ -1,3 +1,11 @@
+button:disabled {
+  /* This ensures the background color is explicitly set */
+  background-color: #ff6b6b;
+  /* Also consider setting other disabled properties */
+  opacity: 1; /* Prevent browser from fading it out */
+  color: white;
+}
+
 .App {
   text-align: center;
 }
