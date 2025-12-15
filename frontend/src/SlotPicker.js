@@ -10,9 +10,6 @@ const generateTimeSlots = (reservedSlots) => {
         const hours = Math.floor(currentMinutes / 60);
         const minutes = currentMinutes % 60;
         const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-        
-        // Check if the current time slot is reserved
-        // Note: It assumes 'reservedSlots' is an array of objects like { time: "HH:MM", is_reserved: 1 }
         const isReserved = reservedSlots.some(slot => slot.time === timeString && slot.is_reserved === 1);
         
         slots.push({
@@ -23,7 +20,6 @@ const generateTimeSlots = (reservedSlots) => {
     return slots;
 };
 
-// Simple utility to format the date to YYYY-MM-DD
 const formatDate = (date) => {
     const d = new Date(date);
     let month = '' + (d.getMonth() + 1);
@@ -43,22 +39,14 @@ const SlotPicker = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // --- Fetch Slots ---
     const fetchSlots = useCallback(async (date) => {
         setLoading(true);
         setError(null);
         try {
             const response = await fetch(`http://localhost:5000/api/slots/${date}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch slots.');
-            }
-            // `data` is now expected to be an array of *reserved* slot objects
+            if (!response.ok) throw new Error('Failed to fetch slots.');
             const reservedData = await response.json(); 
-            
-            // !!! CALL generateTimeSlots HERE !!!
             const fullSlotsList = generateTimeSlots(reservedData);
-
-            // Set the full list of generated and marked slots to state
             setSlots(fullSlotsList);
             
         } catch (err) {
@@ -101,6 +89,35 @@ const SlotPicker = () => {
             alert(`Reservation Error: ${err.message}`);
         }
     };
+    
+    // --- Handle Reservation ---
+    const freeReserve = async (time) => {
+        if (!window.confirm(`Are you sure you want to free the slot on ${selectedDate} at ${time}?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:5000/api/unreserve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: selectedDate, time }),
+            });
+
+            if (!response.ok) {
+                // If the server returns a 409 (Conflict), handle it
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Free failed.');
+            }
+
+            // Success: Re-fetch the slots to update the UI
+            alert(`Slot ${time} freed successfully!`);
+            fetchSlots(selectedDate);
+
+        } catch (err) {
+            alert(`Free Error: ${err.message}`);
+        }
+    };
+    
 
     return (
         <div>
@@ -120,14 +137,15 @@ const SlotPicker = () => {
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '10px' }}>
                     {slots.map((slot) => (
+                        <div>
                         <button
                             key={slot.time}
-                            onClick={() => handleReserve(slot.time)}
+                            onClick={() => {handleReserve(slot.time)}}
                             disabled={slot.isReserved}
                             style={{
                                 padding: '10px 5px',
                                 fontSize: '14px',
-                                cursor: slot.isReserved ? 'not-allowed' : 'pointer',
+                                cursor: 'pointer', //slot.isReserved ? 'not-allowed' : 'pointer',
                                 backgroundColor: slot.isReserved ? '#ff6b6b' : '#4CAF50',
                                 color: 'white',
                                 border: 'none',
@@ -136,6 +154,23 @@ const SlotPicker = () => {
                         >
                             {slot.time} {slot.isReserved && '(Reserved)'}
                         </button>
+                        <button
+                            key={slot.time}
+                            onClick={() => {freeReserve(slot.time)}}
+                            disabled={!slot.isReserved}
+                            style={{
+                                padding: '10px 5px',
+                                fontSize: '14px',
+                                cursor: 'pointer', //slot.isReserved ? 'not-allowed' : 'pointer',
+                                backgroundColor: slot.isReserved ? '#ff6b6b' : '#4CAF50',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '5px'
+                            }}
+                        >
+                            {slot.time} {slot.isReserved && '(Reserved)'}
+                        </button>
+                        </div>
                     ))}
                     {slots.length === 0 && selectedDate && <p>No slots available for this date.</p>}
                 </div>

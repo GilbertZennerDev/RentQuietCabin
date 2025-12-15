@@ -71,7 +71,7 @@ app.post('/api/reserve', (req, res) => {
 
   // Check if the slot is already reserved (optional, but good practice)
   db.get('SELECT * FROM slots WHERE date = ? AND time = ?', [date, time], (err, row) => {
-    if (err) {
+   if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
@@ -102,6 +102,53 @@ app.post('/api/reserve', (req, res) => {
       }
     );
   });
+});
+
+// 3. Unreserve a slot
+app.post('/api/unreserve', (req, res) => {
+  const { date, time } = req.body;
+
+  // 1. Check if the slot exists and is currently reserved
+  db.get(
+    'SELECT * FROM slots WHERE date = ? AND time = ?',
+    [date, time],
+    (err, row) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      // If the row doesn't exist or is not reserved (assuming 0 is unreserved)
+      if (!row || row.is_reserved !== 1) {
+        res.status(404).json({ message: 'Slot is not currently reserved or does not exist.' });
+        return;
+      }
+
+      // 2. Unreserve the slot by setting is_reserved to 0
+      db.run(
+        'UPDATE slots SET is_reserved = 0 WHERE date = ? AND time = ?',
+        [date, time],
+        function (err) {
+          if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+          }
+
+          // Check if any rows were actually changed (should be 1)
+          if (this.changes === 0) {
+            res.status(500).json({ error: 'Failed to unreserve slot.' });
+            return;
+          }
+
+          res.status(200).json({
+            message: 'Slot unreserved successfully',
+            date,
+            time,
+          });
+        }
+      );
+    }
+  );
 });
 
 
