@@ -20,7 +20,8 @@ const db = new sqlite3.Database('./slots.db', (err) => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       date TEXT NOT NULL,
       time TEXT NOT NULL,
-      is_reserved INTEGER DEFAULT 0
+      is_reserved INTEGER DEFAULT 0,
+      UNIQUE (date, time)
     )`);
   }
 });
@@ -65,43 +66,50 @@ app.get('/api/slots/:date', (req, res) => {
   });
 });
 
-// 2. Reserve a slot
+// Server Side: app.post('/api/reserve') (FIXED)
 app.post('/api/reserve', (req, res) => {
-  const { date, time } = req.body;
+    const { date, time } = req.body;
 
-  // Check if the slot is already reserved (optional, but good practice)
-  db.get('SELECT * FROM slots WHERE date = ? AND time = ?', [date, time], (err, row) => {
-   if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-
-    if (row && row.is_reserved === 1) {
-      // Slot is already reserved (update the row)
-      res.status(409).json({ message: 'Slot is already reserved.' });
-      return;
-    }
-
-    // Insert or Update the slot to be reserved
-    // UPSERT logic: If the slot exists, update it, otherwise insert it.
-    // For simplicity, we assume we only care about reserved slots in the DB.
+    // First, attempt to UPDATE the slot if it already exists (reserved or unreserved)
     db.run(
-      'INSERT INTO slots (date, time, is_reserved) VALUES (?, ?, 1)',
-      [date, time],
-      function (err) {
-        if (err) {
-          res.status(500).json({ error: err.message });
-          return;
+        'UPDATE slots SET is_reserved = 1 WHERE date = ? AND time = ?',
+        [date, time],
+        function (err) {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+
+            // Check if a row was updated (meaning it existed)
+            if (this.changes > 0) {
+                return res.status(200).json({
+                    message: 'Slot successfully re-reserved (updated)',
+                    date,
+                    time
+                });
+            }
+
+            // If no row was updated, it means this date/time combination
+            // has never been touched, so we INSERT it as reserved.
+            db.run(
+                'INSERT INTO slots (date, time, is_reserved) VALUES (?, ?, 1)',
+                [date, time],
+                function (err) {
+                    if (err) {
+                        // This error might catch the UNIQUE constraint violation if one exists
+                        res.status(500).json({ error: 'Reservation failed: ' + err.message });
+                        return;
+                    }
+                    res.status(201).json({
+                        message: 'Slot reserved successfully (new entry)',
+                        id: this.lastID,
+                        date,
+                        time
+                    });
+                }
+            );
         }
-        res.status(201).json({ 
-          message: 'Slot reserved successfully',
-          id: this.lastID,
-          date,
-          time
-        });
-      }
     );
-  });
 });
 
 // 3. Unreserve a slot

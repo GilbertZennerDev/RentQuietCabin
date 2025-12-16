@@ -145,7 +145,7 @@ const SlotPicker = () => {
                             style={{
                                 padding: '10px 5px',
                                 fontSize: '14px',
-                                cursor: 'pointer', //slot.isReserved ? 'not-allowed' : 'pointer',
+                                cursor: slot.isReserved ? 'not-allowed' : 'pointer',
                                 backgroundColor: slot.isReserved ? '#ff6b6b' : '#4CAF50',
                                 color: 'white',
                                 border: 'none',
@@ -161,14 +161,14 @@ const SlotPicker = () => {
                             style={{
                                 padding: '10px 5px',
                                 fontSize: '14px',
-                                cursor: 'pointer', //slot.isReserved ? 'not-allowed' : 'pointer',
-                                backgroundColor: slot.isReserved ? '#ff6b6b' : '#4CAF50',
+                                cursor: !slot.isReserved ? 'not-allowed' : 'pointer',
+                                backgroundColor: !slot.isReserved ? '#ff6b6b' : '#4CAF50',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '5px'
                             }}
                         >
-                            {slot.time} {slot.isReserved && '(Reserved)'}
+                            FREE SLOT
                         </button>
                         </div>
                     ))}
